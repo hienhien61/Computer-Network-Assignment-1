@@ -19,9 +19,23 @@ class RtpPacket:
 		
 		# header[0] = ...
 		# ...
+		# header[0] = version + padding + extension + cc + marker + pt + seqnum + timestamp + ssrc
+		header[0] = (version << 6) | (padding << 5) | (extension << 4) | cc
+		header[1] = (marker << 7) | pt
+		header[2] = seqnum >> 8
+		header[3] = seqnum
+		header[4] = timestamp >> 24
+		header[5] = timestamp >> 16
+		header[6] = timestamp >> 8
+		header[7] = timestamp
+		header[8] = ssrc >> 24
+		header[9] = ssrc >> 16
+		header[10] = ssrc >> 8
+		header[11] = ssrc
 		
 		# Get the payload from the argument
 		# self.payload = ...
+		self.payload = payload
 		
 	def decode(self, byteStream):
 		"""Decode the RTP packet."""
