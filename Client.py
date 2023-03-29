@@ -40,10 +40,10 @@ class Client:
     def createWidgets(self):
         """Build GUI."""
         # Create Setup button
-        # self.setup = Button(self.master, width=20, padx=3, pady=3)
-        # self.setup["text"] = "Setup"
-        # self.setup["command"] = self.setupMovie
-        # self.setup.grid(row=1, column=0, padx=2, pady=2)
+        self.setup = Button(self.master, width=20, padx=3, pady=3)
+        self.setup["text"] = "Setup"
+        self.setup["command"] = self.setupMovie
+        self.setup.grid(row=1, column=0, padx=2, pady=2)
 
         # Create Play button
         self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -59,7 +59,7 @@ class Client:
 
         # Create Teardown button
         self.teardown = Button(self.master, width=20, padx=3, pady=3)
-        self.teardown["text"] = "Stop"
+        self.teardown["text"] = "TearDown"
         self.teardown["command"] = self.exitClient
         self.teardown.grid(row=1, column=3, padx=2, pady=2)
 
@@ -76,7 +76,7 @@ class Client:
         """Teardown button handler."""
         self.sendRtspRequest(self.TEARDOWN)
         self.master.destroy()  # Close the gui window
-#        os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
+        os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
 
     def pauseMovie(self):
         """Pause button handler."""
@@ -85,9 +85,7 @@ class Client:
 
     def playMovie(self):
         """Play button handler."""
-        if self.state == self.INIT:
-            self.sendRtspRequest(self.SETUP)
-        elif self.state == self.READY:
+        if self.state == self.READY:
             # Create a new thread to connect to server and listen to the change on server
             threading.Thread(target=self.listenRtp).start()
             # Create a variable to save the next event after click on the button "Play"
@@ -112,10 +110,11 @@ class Client:
                     if seqNum > self.frameNbr:  # Discard the late packet
                         self.frameNbr = seqNum
                         self.updateMovie(
-                            self.writeFrame(rptData.getPayload()))  # send cache name to update movie to change content
+                            self.writeFrame(rptData.getPayload())
+                        )  # send cache name to update movie to change content
 
             except:
-                if self.playEvent.isSet():
+                if self.playEvent.is_set():
                     break
 
                 if self.teardownAcked == 1:
@@ -135,7 +134,9 @@ class Client:
     def updateMovie(self, imageFile):
         """Update the image file as video frame in the GUI."""
         photo = ImageTk.PhotoImage(
-            Image.open(imageFile))  # read the data and transger to variable "photo" by using Tk package
+            Image.open(imageFile)
+        )  # read the data and transger to variable "photo" by using Tk package
+
         self.label.configure(image=photo, height=288)
         self.label.image = photo  # update screen
 
@@ -153,38 +154,40 @@ class Client:
         # -------------
         if requestCode == self.SETUP and self.state == self.INIT:
             threading.Thread(target=self.recvRtspReply).start()
-            # update rptspSeq = self.[action]
-            self.rtspSeq += 1
+
+            self.rtspSeq = 1
             # save the content of action
-            msg = 'SETUP ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(
-                self.rtspSeq) + '\nTransport: RTP/UDP; client_port= ' + str(self.rtpPort)
-            # keep track the request sent to server
+            msg = 'SETUP ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Transport: RTP/UDP; client_port= ' + str(self.rtpPort)
             self.requestSent = self.SETUP
-            self.state = self.READY
+
         # Play request
         elif requestCode == self.PLAY and self.state == self.READY:
             self.rtspSeq += 1
 
-            msg = 'PLAY ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(
-                self.sessionId)
+            msg = 'PLAY ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId)
             self.requestSent = self.PLAY
-            self.state = self.PLAYING
+
         # Pause request
         elif requestCode == self.PAUSE and self.state == self.PLAYING:
-            self.rtspSeq
+            self.rtspSeq += 1
 
-            msg = 'PAUSE ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(
-                self.sessionId)
+            msg = 'PAUSE ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId)
             self.requestSent = self.PAUSE
-            self.state = self.READY
+
         # Teardown request
         elif requestCode == self.TEARDOWN and self.state != self.INIT:
             self.rtspSeq += 1
 
-            msg = 'TEARDOWN ' + self.fileName + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(
-                self.sessionId)
+            msg = 'TEARDOWN ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId)
             self.requestSent = self.TEARDOWN
-            self.state = self.INIT
         else:
             return
 
@@ -219,17 +222,16 @@ class Client:
             if self.sessionId == session:
                 if int(lines[0].split(b' ')[1]) == 200:  # The status code 200 is OK
                     if self.requestSent == self.SETUP:
-                        # Update RTSP state.
-                        self.state = self.READY
                         # Open RTP port.
                         self.openRtpPort()
-                        self.playMovie()
+                        self.state = self.READY
                     elif self.requestSent == self.PLAY:
+                        # self.playMovie()
                         self.state = self.PLAYING
                     elif self.requestSent == self.PAUSE:
-                        self.state = self.READY
-                        # The play thread exits. A new thread is created on resume.
+                        # The play thread exits. A new thread is created on resume
                         self.playEvent.set()
+                        self.state = self.READY
                     elif self.requestSent == self.TEARDOWN:
                         self.state = self.INIT
                         # Flag the teardownAcked to close the socket.

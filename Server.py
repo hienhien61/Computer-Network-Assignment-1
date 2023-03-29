@@ -8,11 +8,8 @@ class Server:
     def main(self):
         try:
             SERVER_PORT = int(sys.argv[1])
-
-            hostName = str(socket.gethostname())
-            print(hostName)
-
-        finally:
+            print(socket.gethostname())
+        except:
             print("[Usage: Server.py Server_port]\n")
         rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         rtspSocket.bind(('', SERVER_PORT))
@@ -27,3 +24,4 @@ class Server:
 
 if __name__ == "__main__":
     (Server()).main()
+
