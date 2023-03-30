@@ -13,6 +13,7 @@ class Client:
     INIT = 0
     READY = 1
     PLAYING = 2
+    LOAD = 3                #load avalable video
     state = INIT
 
     SETUP = 0
