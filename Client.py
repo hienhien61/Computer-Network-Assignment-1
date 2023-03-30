@@ -2,6 +2,7 @@ from tkinter import *
 import tkinter.messagebox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
+import time
 
 from RtpPacket import RtpPacket
 
@@ -26,6 +27,7 @@ class Client:
     LOWER = 8
 
     MIN_SPEED = 5
+
     # Initiation..
     def __init__(self, master, serveraddr, serverport, rtpport, filename):
         self.master = master
@@ -44,18 +46,16 @@ class Client:
         self.totalFrame = 0
         self.connectToServer()
         self.frameNbr = 0
-        self.speed = 20                   #default speed from server
-
-
+        self.speed = 20
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
         """Build GUI."""
         # Create Setup button
-        self.setup = Button(self.master, width=20, padx=3, pady=3)
-        self.setup["text"] = "Setup"
-        self.setup["command"] = self.setupMovie
-        self.setup.grid(row=1, column=0, padx=2, pady=2)
+        # self.setup = Button(self.master, width=20, padx=3, pady=3)
+        # self.setup["text"] = "Setup"
+        # self.setup["command"] = self.setupMovie
+        # self.setup.grid(row=1, column=0, padx=2, pady=2)
 
         # Create Play button
         self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -75,7 +75,7 @@ class Client:
         self.teardown["command"] = self.exitClient
         self.teardown.grid(row=1, column=3, padx=2, pady=2)
 
-        #Create Describe button
+        # Create Describe button
         self.describe = Button(self.master, width=20, padx=3, pady=3)
         self.describe["text"] = "Describe"
         self.describe["command"] = self.describeMovie
@@ -130,6 +130,10 @@ class Client:
 
     def playMovie(self):
         """Play button handler."""
+        if self.state == self.INIT:
+            self.sendRtspRequest(self.SETUP)
+            time.sleep(0.1)
+
         if self.state == self.READY:
             # Create a new thread to connect to server and listen to the change on server
             threading.Thread(target=self.listenRtp).start()
@@ -223,88 +227,90 @@ class Client:
             self.rtspSeq = 1
             # save the content of action
             msg = 'SETUP ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Transport: RTP/UDP; client_port= ' + str(self.rtpPort)
+                                             'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                            'Transport: RTP/UDP; client_port= ' + str(
+                self.rtpPort)
             self.requestSent = self.SETUP
         # Play request
         elif requestCode == self.PLAY and self.state == self.READY:
             self.rtspSeq += 1
 
             msg = 'PLAY ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId)
+                                            'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                           'Session: ' + str(self.sessionId)
             self.requestSent = self.PLAY
         # Pause request
         elif requestCode == self.PAUSE and self.state == self.PLAYING:
             self.rtspSeq += 1
 
             msg = 'PAUSE ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId)
+                                             'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                            'Session: ' + str(self.sessionId)
             self.requestSent = self.PAUSE
         # Teardown request
         elif requestCode == self.TEARDOWN and self.state != self.INIT:
             self.rtspSeq += 1
 
             msg = 'TEARDOWN ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId)
+                                                'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                               'Session: ' + str(self.sessionId)
             self.requestSent = self.TEARDOWN
         # Describe request
         elif requestCode == self.DESCRIBE and (self.state == self.PLAYING or self.state == self.READY):
             self.rtspSeq += 1
 
             msg = 'DESCRIBE ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId)
+                                                'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                               'Session: ' + str(self.sessionId)
             self.requestSent = self.DESCRIBE
         # Forward request
-        elif requestCode == self.FORWARD and self.state == self.PLAYING:
+        elif requestCode == self.FORWARD:
             self.rtspSeq += 1
 
-            self.frameNbr += 30
+            self.frameNbr += 50
 
             if self.frameNbr > self.maxFrame:
                 self.frameNbr = self.maxFrame
 
             msg = 'FORWARD ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId) +'\n' \
-                    'Frame: ' + str(self.frameNbr)
+                                               'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                              'Session: ' + str(self.sessionId) + '\n' \
+                                                                                                                  'Frame: ' + str(
+                self.frameNbr)
             self.requestSent = self.FORWARD
         # Backward request
-        elif requestCode == self.BACKWARD and self.state == self.PLAYING:
+        elif requestCode == self.BACKWARD:
             self.rtspSeq += 1
 
-            self.frameNbr -= 30
+            self.frameNbr -= 50
 
             if self.frameNbr < 0:
                 self.frameNbr = 0
 
             msg = 'BACKWARD ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId) + '\n' \
-                    'Frame: ' + str(self.frameNbr)
+                                                'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                               'Session: ' + str(self.sessionId) + '\n' \
+                                                                                                                   'Frame: ' + str(
+                self.frameNbr)
             self.requestSent = self.BACKWARD
         # Faster request
-        elif requestCode == self.FASTER and self.state == self.PLAYING:
+        elif requestCode == self.FASTER:
             self.rtspSeq += 1
             self.speed *= 2
 
             msg = 'FASTER ' + self.fileName + ' RTSP/1.0\n' \
-                    'CSeq: ' + str(self.rtspSeq) + '\n' \
-                    'Session: ' + str(self.sessionId)
+                                              'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                             'Session: ' + str(self.sessionId)
             self.requestSent = self.FASTER
         # Lower request
-        elif requestCode == self.LOWER and self.state == self.PLAYING:
-            if self.speed/2 >= self.MIN_SPEED:
-
+        elif requestCode == self.LOWER:
+            if self.speed / 2 >= self.MIN_SPEED:
                 self.rtspSeq += 1
                 self.speed /= 2
 
                 msg = 'LOWER ' + self.fileName + ' RTSP/1.0\n' \
-                        'CSeq: ' + str(self.rtspSeq) + '\n' \
-                        'Session: ' + str(self.sessionId)
+                                                 'CSeq: ' + str(self.rtspSeq) + '\n' \
+                                                                                'Session: ' + str(self.sessionId)
                 self.requestSent = self.LOWER
 
         else:
