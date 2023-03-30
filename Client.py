@@ -103,7 +103,7 @@ class Client:
         """Teardown button handler."""
         self.sendRtspRequest(self.TEARDOWN)
         self.master.destroy()  # Close the gui window
-        # os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
+        os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
 
     def pauseMovie(self):
         """Pause button handler."""
