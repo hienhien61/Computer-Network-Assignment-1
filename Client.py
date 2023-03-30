@@ -20,6 +20,8 @@ class Client:
     PAUSE = 2
     TEARDOWN = 3
     DESCRIBE = 4
+    FORWARD = 5
+    BACKWARD = 6
 
     # Initiation..
     def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -34,6 +36,9 @@ class Client:
         self.sessionId = 0
         self.requestSent = -1
         self.teardownAcked = 0
+        self.maxFrame = 0
+        self.secPerFrame = 0
+        self.totalFrame = 0
         self.connectToServer()
         self.frameNbr = 0
 
@@ -78,10 +83,21 @@ class Client:
         self.description = Text(self.master, width=40, padx=3, pady=3, height=10)
         self.description.grid(row=4, columnspan=2, column=2)
 
+        # Create Foward button
+        self.forward = Button(self.master, width=20, padx=3, pady=3)
+        self.forward["text"] = "Forward"
+        self.forward["command"] = self.forwardMovie
+        self.forward.grid(row=1, column=5, padx=2, pady=2)
+
+        # Create Back button
+        self.backward = Button(self.master, width=20, padx=3, pady=3)
+        self.backward["text"] = "Backward"
+        self.backward["command"] = self.backwardMovie
+        self.backward.grid(row=1, column=6, padx=2, pady=2)
+
     def setupMovie(self):
         """Setup button handler."""
-        if self.state == self.INIT:
-            self.sendRtspRequest(self.SETUP)
+        self.sendRtspRequest(self.SETUP)
 
     def exitClient(self):
         """Teardown button handler."""
@@ -110,6 +126,14 @@ class Client:
     def describeMovie(self):
         """Describe button handler."""
         self.sendRtspRequest(self.DESCRIBE)
+
+    def forwardMovie(self):
+        """Forward button handler."""
+        self.sendRtspRequest(self.FORWARD)
+
+    def backwardMovie(self):
+        """Backward button handler."""
+        self.sendRtspRequest(self.BACKWARD)
 
     def listenRtp(self):
         """Listen for RTP packets."""
@@ -208,6 +232,35 @@ class Client:
                     'CSeq: ' + str(self.rtspSeq) + '\n' \
                     'Session: ' + str(self.sessionId)
             self.requestSent = self.DESCRIBE
+        # Forward request
+        elif requestCode == self.FORWARD and self.state == self.PLAYING:
+            self.rtspSeq += 1
+
+            self.frameNbr += 30
+
+            if self.frameNbr > self.maxFrame:
+                self.frameNbr = self.maxFrame
+
+            msg = 'FORWARD ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId) +'\n' \
+                    'Frame: ' + str(self.frameNbr)
+            self.requestSent = self.FORWARD
+        # Backward request
+        elif requestCode == self.BACKWARD and self.state == self.PLAYING:
+            self.rtspSeq += 1
+
+            self.frameNbr -= 30
+
+            if self.frameNbr < 0:
+                self.frameNbr = 0
+
+            msg = 'BACKWARD ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId) + '\n' \
+                    'Frame: ' + str(self.frameNbr)
+            self.requestSent = self.BACKWARD
+
         else:
             return
 
@@ -242,6 +295,9 @@ class Client:
             if self.sessionId == session:
                 if int(lines[0].split(b' ')[1]) == 200:  # The status code 200 is OK
                     if self.requestSent == self.SETUP:
+
+                        self.maxFrame = int(lines[3].decode().split(' ')[1])
+                        self.secPerFrame = float(lines[4].decode().split(' ')[1])
                         # Update state.
                         self.state = self.READY
                         # Open RTP port.
