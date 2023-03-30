@@ -6,6 +6,7 @@ import threading
 import sys
 import traceback
 import os
+import functools
 
 from RtpPacket import RtpPacket
 
@@ -39,10 +40,30 @@ class Client:
         self.teardownAcked = 0
         self.connectToServer()
         self.frameNbr = 0
+        self.videos = ["movie.Mjpeg"]
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
         """Build GUI."""
+
+        # # Create Text
+        # self.ann = Text(self.master, width=40, padx=3, pady=3, height=10)
+        # self.ann.grid(row=4, columnspan=2)
+
+        # # Create Description
+        # self.des = Text(self.master, width=40, padx=3, pady=3, height=10)
+        # self.des.grid(row=4, columnspan=2, column=2)
+
+        # for item in self.videos:
+        #     button = Button(self.frameContainer, text=item, width=20,
+        #                     padx=2, pady=2)
+        #     button.pack(side=TOP)
+
+        # for i in range(1, 6):
+        #     self.video = Button(self.master, width=20, padx=3, pady=2)
+        #     self.video["text"] = "movie"
+        #     self.video.grid(row=i, column=4, padx=2, pady=2)
+
         # Create Setup button
         self.setup = Button(self.master, width=20, padx=3, pady=3)
         self.setup["text"] = "Setup"
@@ -71,6 +92,9 @@ class Client:
         self.label = Label(self.master, height=19)
         self.label.grid(row=0, column=0, columnspan=4,
                         sticky=W+E+N+S, padx=5, pady=5)
+
+        self.frameContainer = Frame(self.master, width=200)
+        self.frameContainer.grid(column=4, row=1, rowspan=4)
 
     def setupMovie(self):
         """Setup button handler."""
@@ -322,3 +346,14 @@ class Client:
             self.exitClient()
         else:  # Pause video when pressing cancel
             self.pauseMovie()
+
+    def setList(self):
+
+        def func(name):
+            self.fileName = name
+            self.reset = True
+            self.des.insert(INSERT, "Switch to file " + name + '\n\n')
+        for item in self.videos:
+            button = Button(self.frameContainer, text=item, width=20,
+                            padx=2, pady=2, command=functools.partial(func, item))
+            button.pack(side=TOP)
