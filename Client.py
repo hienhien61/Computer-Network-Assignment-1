@@ -76,7 +76,7 @@ class Client:
         """Teardown button handler."""
         self.sendRtspRequest(self.TEARDOWN)
         self.master.destroy()  # Close the gui window
-        os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
+        # os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
 
     def pauseMovie(self):
         """Pause button handler."""
@@ -161,7 +161,6 @@ class Client:
                     'CSeq: ' + str(self.rtspSeq) + '\n' \
                     'Transport: RTP/UDP; client_port= ' + str(self.rtpPort)
             self.requestSent = self.SETUP
-
         # Play request
         elif requestCode == self.PLAY and self.state == self.READY:
             self.rtspSeq += 1
@@ -170,7 +169,6 @@ class Client:
                     'CSeq: ' + str(self.rtspSeq) + '\n' \
                     'Session: ' + str(self.sessionId)
             self.requestSent = self.PLAY
-
         # Pause request
         elif requestCode == self.PAUSE and self.state == self.PLAYING:
             self.rtspSeq += 1
@@ -179,7 +177,6 @@ class Client:
                     'CSeq: ' + str(self.rtspSeq) + '\n' \
                     'Session: ' + str(self.sessionId)
             self.requestSent = self.PAUSE
-
         # Teardown request
         elif requestCode == self.TEARDOWN and self.state != self.INIT:
             self.rtspSeq += 1
@@ -222,16 +219,16 @@ class Client:
             if self.sessionId == session:
                 if int(lines[0].split(b' ')[1]) == 200:  # The status code 200 is OK
                     if self.requestSent == self.SETUP:
+                        # Update state.
+                        self.state = self.READY
                         # Open RTP port.
                         self.openRtpPort()
-                        self.state = self.READY
                     elif self.requestSent == self.PLAY:
-                        # self.playMovie()
                         self.state = self.PLAYING
                     elif self.requestSent == self.PAUSE:
-                        # The play thread exits. A new thread is created on resume
-                        self.playEvent.set()
                         self.state = self.READY
+                        # The play thread exits. A new thread is created on resume.
+                        self.playEvent.set()
                     elif self.requestSent == self.TEARDOWN:
                         self.state = self.INIT
                         # Flag the teardownAcked to close the socket.
