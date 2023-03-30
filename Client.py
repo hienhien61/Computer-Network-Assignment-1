@@ -22,7 +22,10 @@ class Client:
     DESCRIBE = 4
     FORWARD = 5
     BACKWARD = 6
+    FASTER = 7
+    LOWER = 8
 
+    MIN_SPEED = 5
     # Initiation..
     def __init__(self, master, serveraddr, serverport, rtpport, filename):
         self.master = master
@@ -41,6 +44,9 @@ class Client:
         self.totalFrame = 0
         self.connectToServer()
         self.frameNbr = 0
+        self.speed = 20                   #default speed from server
+
+
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
@@ -89,11 +95,23 @@ class Client:
         self.forward["command"] = self.forwardMovie
         self.forward.grid(row=1, column=5, padx=2, pady=2)
 
-        # Create Back button
+        # Create Backward button
         self.backward = Button(self.master, width=20, padx=3, pady=3)
         self.backward["text"] = "Backward"
         self.backward["command"] = self.backwardMovie
         self.backward.grid(row=1, column=6, padx=2, pady=2)
+
+        # Create Faster button
+        self.faster = Button(self.master, width=20, padx=3, pady=3)
+        self.faster["text"] = "Faster"
+        self.faster["command"] = self.fasterMovie
+        self.faster.grid(row=1, column=7, padx=2, pady=2)
+
+        # Create Lower button
+        self.lower = Button(self.master, width=20, padx=3, pady=3)
+        self.lower["text"] = "Lower"
+        self.lower["command"] = self.lowerMovie
+        self.lower.grid(row=2, column=2, padx=2, pady=2)
 
     def setupMovie(self):
         """Setup button handler."""
@@ -134,6 +152,14 @@ class Client:
     def backwardMovie(self):
         """Backward button handler."""
         self.sendRtspRequest(self.BACKWARD)
+
+    def fasterMovie(self):
+        """Faster button handler."""
+        self.sendRtspRequest(self.FASTER)
+
+    def lowerMovie(self):
+        """Lower button handler."""
+        self.sendRtspRequest(self.LOWER)
 
     def listenRtp(self):
         """Listen for RTP packets."""
@@ -260,6 +286,26 @@ class Client:
                     'Session: ' + str(self.sessionId) + '\n' \
                     'Frame: ' + str(self.frameNbr)
             self.requestSent = self.BACKWARD
+        # Faster request
+        elif requestCode == self.FASTER and self.state == self.PLAYING:
+            self.rtspSeq += 1
+            self.speed *= 2
+
+            msg = 'FASTER ' + self.fileName + ' RTSP/1.0\n' \
+                    'CSeq: ' + str(self.rtspSeq) + '\n' \
+                    'Session: ' + str(self.sessionId)
+            self.requestSent = self.FASTER
+        # Lower request
+        elif requestCode == self.LOWER and self.state == self.PLAYING:
+            if self.speed/2 >= self.MIN_SPEED:
+
+                self.rtspSeq += 1
+                self.speed /= 2
+
+                msg = 'LOWER ' + self.fileName + ' RTSP/1.0\n' \
+                        'CSeq: ' + str(self.rtspSeq) + '\n' \
+                        'Session: ' + str(self.sessionId)
+                self.requestSent = self.LOWER
 
         else:
             return
@@ -342,6 +388,7 @@ class Client:
         """Handler on explicitly closing the GUI window."""
         self.pauseMovie()
         if tkinter.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
+            os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT)  # Delete the cache image from video
             self.exitClient()
         else:  # When the user presses cancel, resume playing.
             self.playMovie()

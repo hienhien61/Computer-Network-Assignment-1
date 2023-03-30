@@ -13,7 +13,8 @@ class ServerWorker:
     DESCRIBE = 'DESCRIBE'
     FORWARD = 'FORWARD'
     BACKWARD = 'BACKWARD'
-
+    FASTER = 'FASTER'
+    LOWER = 'LOWER'
 
     INIT = 0
     READY = 1
@@ -23,6 +24,7 @@ class ServerWorker:
     OK_200 = 0
     FILE_NOT_FOUND_404 = 1
     CON_ERR_500 = 2
+
 
     clientInfo = {}
 
@@ -135,10 +137,21 @@ class ServerWorker:
             print(data)
             self.replyRewind(self.OK_200, seq[1], frameNum)
 
+        # Process FASTER request
+        elif requestType == self.FASTER:
+            print("processcing Faster\n")
+            self.speed /= 2
+            self.replyRtsp(self.OK_200, seq[1])
+
+        # Process LOWER request
+        elif requestType == self.LOWER:
+            print("processcing Lower\n")
+            self.speed *= 2
+            self.replyRtsp(self.OK_200, seq[1])
     def sendRtp(self):
         """Send RTP packets over UDP."""
         while True:
-            self.clientInfo['event'].wait(0.05)
+            self.clientInfo['event'].wait(self.speed)
 
             # Stop sending if request is PAUSE or TEARDOWN
             if self.clientInfo['event'].isSet():
