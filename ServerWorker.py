@@ -10,6 +10,7 @@ class ServerWorker:
     PLAY = 'PLAY'
     PAUSE = 'PAUSE'
     TEARDOWN = 'TEARDOWN'
+    DESCRIBE = 'DESCRIBE'
 
     INIT = 0
     READY = 1
@@ -108,6 +109,11 @@ class ServerWorker:
             # Close the RTP socket
             self.clientInfo['rtpSocket'].close()
 
+        # Process DESCRIBE request
+        elif requestType == self.DESCRIBE:
+            print("processing DESCRBIE\n")
+            self.replyDescribe(self.OK_200, seq[1], filename)
+
     def sendRtp(self):
         """Send RTP packets over UDP."""
         while True:
@@ -152,6 +158,26 @@ class ServerWorker:
         if code == self.OK_200:
             # print("200 OK")
             reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\nSession: ' + str(self.clientInfo['session'])
+            connSocket = self.clientInfo['rtspSocket'][0]
+            connSocket.send(reply.encode())
+
+        # Error messages
+        elif code == self.FILE_NOT_FOUND_404:
+            print("404 NOT FOUND")
+        elif code == self.CON_ERR_500:
+            print("500 CONNECTION ERROR")
+
+    def replyDescribe(self, code, seq, filename):
+        body = '\n\nv=0\n' \
+                'm=video ' + str(self.clientInfo['rtpPort']) + ' RTP/AVP 26\n' \
+                'a=control:streamid=' + str(self.clientInfo["session"]) + '\n' \
+                'a=\mimetype:string;\'video/MJPEG\"'
+
+        if code == self.OK_200:
+            reply = 'RTSP/1.0 200 OK\nCSeq: ' + str(seq) + '\nSession: ' + str(self.clientInfo['session']) + '\n' \
+                    'Content−Base: ' + filename + '\n'\
+                    'Content−Type: application/sdp\n' \
+                    'Content−Length: ' + str(len(body)) + body
             connSocket = self.clientInfo['rtspSocket'][0]
             connSocket.send(reply.encode())
 
