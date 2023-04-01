@@ -55,11 +55,22 @@ class ServerWorker:
         # Get the RTSP sequence number
         seq = request[1].split(' ')
 
+        # Process LOAD request
+        if requestType == self.LOAD:
+            if self.state == self.INIT:
+                print("processing LOAD\n")
+                self.clientInfo['session'] = randint(100000, 999999)
+                self.state = self.SWITCH
+                self.replyLoad(self.OK_200, seq[1])
+
         # Process SETUP request
         if requestType == self.SETUP:
-            if self.state == self.INIT:
+            if self.state == self.SWITCH:
                 # Update state
                 print("processing SETUP\n")
+
+                if self.state == self.PLAYING:
+                    self.clientInfo['event'].set()
 
                 try:
                     self.clientInfo['videoStream'] = VideoStream(filename)
@@ -68,7 +79,7 @@ class ServerWorker:
                     self.replyRtsp(self.FILE_NOT_FOUND_404, seq[1])
 
                 # Generate a randomized RTSP session ID
-                self.clientInfo['session'] = randint(100000, 999999)
+                # self.clientInfo['session'] = randint(100000, 999999)
 
                 # Send RTSP reply
                 self.replyRtsp(self.OK_200, seq[1])
@@ -166,7 +177,8 @@ class ServerWorker:
         """Send RTSP reply to the client."""
         if code == self.OK_200:
             # print("200 OK")
-            reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\n'
+            reply = 'RTSP/1.0 200 OK\n'
+            reply += 'CSeq: ' + seq + '\n'
             reply += 'Session: ' + str(self.clientInfo['session'])
             connSocket = self.clientInfo['rtspSocket'][0]
             connSocket.send(reply.encode())
@@ -174,5 +186,19 @@ class ServerWorker:
         # Error messages
         elif code == self.FILE_NOT_FOUND_404:
             print("404 NOT FOUND")
+        elif code == self.CON_ERR_500:
+            print("500 CONNECTION ERROR")
+
+    def replyLoad(self, code, seq):
+        if code == self.OK_200:
+            videos = ','.join(VideoStream.getVideosList())
+            reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\n'
+            reply += 'Session: ' + str(self.clientInfo['session']) + '\n'
+            reply += 'Videos: ' + videos
+            self.clientInfo['rtspSocket'][0].send(reply.encode())
+
+        elif code == self.FILE_NOT_FOUND_404:
+            print("404 NOT FOUND")
+
         elif code == self.CON_ERR_500:
             print("500 CONNECTION ERROR")
