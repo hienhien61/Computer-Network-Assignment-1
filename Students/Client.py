@@ -10,6 +10,8 @@ import functools
 
 from RtpPacket import RtpPacket
 
+import tkinter as tk
+
 CACHE_FILE_NAME = "cache-"
 CACHE_FILE_EXT = ".jpg"
 
@@ -40,7 +42,7 @@ class Client:
         self.teardownAcked = 0
         self.connectToServer()
         self.frameNbr = 0
-        self.videos = ["movie.Mjpeg"]
+        self.videos = []
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
@@ -50,9 +52,9 @@ class Client:
         # self.ann = Text(self.master, width=40, padx=3, pady=3, height=10)
         # self.ann.grid(row=4, columnspan=2)
 
-        # # Create Description
-        # self.des = Text(self.master, width=40, padx=3, pady=3, height=10)
-        # self.des.grid(row=4, columnspan=2, column=2)
+        # Create Description
+        self.des = Text(self.master, width=80, padx=3, pady=3, height=8)
+        self.des.grid(row=2, columnspan=4, column=0)
 
         # for item in self.videos:
         #     button = Button(self.frameContainer, text=item, width=20,
@@ -95,6 +97,23 @@ class Client:
 
         self.frameContainer = Frame(self.master, width=200)
         self.frameContainer.grid(column=4, row=1, rowspan=4)
+
+        VIDEO_FOLDER = "./videos/"
+        files = os.listdir(VIDEO_FOLDER)
+        video_files = filter(lambda file: file.endswith(
+            ('.mp4', '.avi', '.mkv', '.Mjpeg')), files)
+        video_paths = {file: os.path.join(
+            VIDEO_FOLDER, file) for file in video_files}
+
+        def select_video(name):
+            self.fileName = name
+            self.des.insert(INSERT, "Switch to video " + name + '\n\n')
+
+        for file, path in video_paths.items():
+            # create a button and add it to the window
+            button = Button(self.frameContainer, text=file, width=30,
+                            padx=2, pady=2, command=lambda path=path: select_video(path))
+            button.pack()
 
     def setupMovie(self):
         """Setup button handler."""
@@ -148,6 +167,7 @@ class Client:
                 # Stop listening upon requesting PAUSE or TEARDOWN
                 # print("Didn't receive data!")
                 if self.playEvent.is_set():
+                    self.state = self.READY
                     break
 
                 # Upon receiving ACK for TEARDOWN request,
@@ -155,6 +175,7 @@ class Client:
                 if self.teardownAcked == 1:
                     self.rtpSocket.shutdown(socket.SHUT_RDWR)
                     self.rtpSocket.close()
+                    self.state = self.READY
                     break
 
     def writeFrame(self, data):
