@@ -179,7 +179,7 @@ class Client:
             threading.Thread(target=self.recvRtspReply).start()
             # Update RTSP sequence number
             # RTSP Sequence number starts at 1
-            self.rtspSeq = 1
+            self.rtspSeq = self.rtspSeq + 1
             # Write the RTSP request to be sent
             # request = requestCode + movie file name + RTSP sequence number + Type of RTSP/RTP + RTP port
             request = 'SETUP ' + self.fileName + ' RTSP/1.0\n'
