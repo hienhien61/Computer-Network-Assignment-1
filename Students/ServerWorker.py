@@ -57,20 +57,17 @@ class ServerWorker:
 
         # Process LOAD request
         if requestType == self.LOAD:
-            if self.state == self.INIT:
+            if self.state == self.INIT or self.state == self.READY or self.state == self.PLAYING:
                 print("processing LOAD\n")
                 self.clientInfo['session'] = randint(100000, 999999)
                 self.state = self.SWITCH
                 self.replyLoad(self.OK_200, seq[1])
 
         # Process SETUP request
-        if requestType == self.SETUP:
+        elif requestType == self.SETUP:
             if self.state == self.SWITCH:
                 # Update state
                 print("processing SETUP\n")
-
-                if self.state == self.PLAYING:
-                    self.clientInfo['event'].set()
 
                 try:
                     self.clientInfo['videoStream'] = VideoStream(filename)
@@ -154,6 +151,9 @@ class ServerWorker:
                     # print('-'*60)
                     # traceback.print_exc(file=sys.stdout)
                     # print('-'*60)
+            else:
+                self.clientInfo['event'].set()
+                break
 
     def makeRtp(self, payload, frameNbr):
         """RTP-packetize the video data."""
@@ -192,7 +192,8 @@ class ServerWorker:
     def replyLoad(self, code, seq):
         if code == self.OK_200:
             videos = ','.join(VideoStream.getVideosList())
-            reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\n'
+            reply = 'RTSP/1.0 200 OK\n'
+            reply += 'CSeq: ' + seq + '\n'
             reply += 'Session: ' + str(self.clientInfo['session']) + '\n'
             reply += 'Videos: ' + videos
             self.clientInfo['rtspSocket'][0].send(reply.encode())

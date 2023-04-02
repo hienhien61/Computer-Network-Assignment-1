@@ -46,6 +46,7 @@ class Client:
         self.frameNbr = 0
         self.videos = []
         self.loadMovies()
+        self.reset = False
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
@@ -119,12 +120,13 @@ class Client:
         #     button.pack()
 
     def loadMovies(self):
-        if self.state == self.INIT:
-            self.sendRtspRequest(self.LOAD)
+        # if self.state == self.INIT:
+        self.sendRtspRequest(self.LOAD)
 
     def setupMovie(self):
         """Setup button handler."""
         # TODO
+        self.reset = True
         if self.state == self.SWITCH:
             self.sendRtspRequest(self.SETUP)
 
@@ -145,6 +147,9 @@ class Client:
     def playMovie(self):
         """Play button handler."""
         # TODO
+        if self.reset == True:
+            self.reset = False
+            self.frameNbr = 0
         if self.state == self.READY:
             print("Playing Movie")
             # Create a thread connecting to server
@@ -152,9 +157,9 @@ class Client:
             self.playEvent = threading.Event()		# Save the next event
             self.playEvent.clear()		# Block the thread until server response
             self.sendRtspRequest(self.PLAY)
-        elif self.state == self.SWITCH and self.fileName != '':
-            self.frameNbr = 0
-            self.sendRtspRequest(self.SETUP)
+        # elif self.state == self.SWITCH and self.fileName != '':
+        #     self.frameNbr = 0
+        #     self.sendRtspRequest(self.SETUP)
 
     def listenRtp(self):
         """Listen for RTP packets."""
@@ -231,7 +236,7 @@ class Client:
         # -------------
         # TO COMPLETE
         # -------------
-        if requestCode == self.LOAD and self.state == self.INIT:
+        if requestCode == self.LOAD:
             threading.Thread(target=self.recvRtspReply).start()
 
             self.rtspSeq = self.rtspSeq + 1
@@ -241,6 +246,7 @@ class Client:
             request += 'Session: ' + str(self.sessionId)
 
             self.requestSent = self.LOAD
+            self.state = self.SWITCH
 
         elif requestCode == self.SETUP and self.state == self.SWITCH:
             # Update RTSP sequence number
@@ -421,7 +427,9 @@ class Client:
 
         def select_video(name):
             self.fileName = name[9:]
-            self.state = self.SWITCH
+            # self.state = self.SWITCH
+            self.reset = True
+            self.loadMovies()
             self.des.insert(INSERT, "Switch to video " +
                             self.fileName + '\n\n')
 
