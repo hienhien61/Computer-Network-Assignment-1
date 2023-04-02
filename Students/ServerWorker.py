@@ -18,7 +18,7 @@ class ServerWorker:
     INIT = 0
     READY = 1
     PLAYING = 2
-    SWITCH = 3
+    # SWITCH = 3
     state = INIT
 
     OK_200 = 0
@@ -55,17 +55,9 @@ class ServerWorker:
         # Get the RTSP sequence number
         seq = request[1].split(' ')
 
-        # Process LOAD request
-        if requestType == self.LOAD:
-            if self.state == self.INIT or self.state == self.READY or self.state == self.PLAYING:
-                print("processing LOAD\n")
-                self.clientInfo['session'] = randint(100000, 999999)
-                self.state = self.SWITCH
-                self.replyLoad(self.OK_200, seq[1])
-
         # Process SETUP request
-        elif requestType == self.SETUP:
-            if self.state == self.SWITCH:
+        if requestType == self.SETUP:
+            if self.state == self.INIT:
                 # Update state
                 print("processing SETUP\n")
 
@@ -76,7 +68,7 @@ class ServerWorker:
                     self.replyRtsp(self.FILE_NOT_FOUND_404, seq[1])
 
                 # Generate a randomized RTSP session ID
-                # self.clientInfo['session'] = randint(100000, 999999)
+                self.clientInfo['session'] = randint(100000, 999999)
 
                 # Send RTSP reply
                 self.replyRtsp(self.OK_200, seq[1])
@@ -84,11 +76,20 @@ class ServerWorker:
                 # Get the RTP/UDP port from the last line
                 self.clientInfo['rtpPort'] = request[2].split(' ')[3]
 
-        # # Process LOAD request
-        # elif requestType == self.LOAD:
-        #     if self.state == self.INIT or self.state == self.READY or self.state == self.PLAYING:
-        #         print("processing LOAD\n")
-        #         self.state = self.SWITCH
+        # Process LOAD request
+        if requestType == self.LOAD:
+            if self.state == self.READY or self.state == self.PLAYING:
+                print("processing LOAD\n")
+                # self.clientInfo['session'] = randint(100000, 999999)
+                # self.state = self.READY
+
+                try:
+                    self.clientInfo['videoStream'] = VideoStream(filename)
+                    self.state = self.READY
+                except IOError:
+                    self.replyRtsp(self.FILE_NOT_FOUND_404, seq[1])
+
+                self.replyLoad(self.OK_200, seq[1])
 
         # Process PLAY request
         elif requestType == self.PLAY:
@@ -148,9 +149,6 @@ class ServerWorker:
                         self.makeRtp(data, frameNumber), (address, port))
                 except:
                     print("Connection Error")
-                    # print('-'*60)
-                    # traceback.print_exc(file=sys.stdout)
-                    # print('-'*60)
             else:
                 self.clientInfo['event'].set()
                 break

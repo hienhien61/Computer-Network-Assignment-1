@@ -20,7 +20,7 @@ class Client:
     INIT = 0
     READY = 1
     PLAYING = 2
-    SWITCH = 3
+    # SWITCH = 3
     state = INIT
 
     SETUP = 0
@@ -45,8 +45,10 @@ class Client:
         self.connectToServer()
         self.frameNbr = 0
         self.videos = []
-        self.loadMovies()
         self.reset = False
+        self.setupMovie()
+        # self.loadMovies()
+        # self.setList()
 
     # THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI
     def createWidgets(self):
@@ -60,21 +62,11 @@ class Client:
         self.des = Text(self.master, width=80, padx=3, pady=3, height=8)
         self.des.grid(row=2, columnspan=4, column=0)
 
-        # for item in self.videos:
-        #     button = Button(self.frameContainer, text=item, width=20,
-        #                     padx=2, pady=2)
-        #     button.pack(side=TOP)
-
-        # for i in range(1, 6):
-        #     self.video = Button(self.master, width=20, padx=3, pady=2)
-        #     self.video["text"] = "movie"
-        #     self.video.grid(row=i, column=4, padx=2, pady=2)
-
         # Create Setup button
-        self.setup = Button(self.master, width=20, padx=3, pady=3)
-        self.setup["text"] = "Setup"
-        self.setup["command"] = self.setupMovie
-        self.setup.grid(row=1, column=0, padx=2, pady=2)
+        # self.setup = Button(self.master, width=20, padx=3, pady=3)
+        # self.setup["text"] = "Setup"
+        # self.setup["command"] = self.setupMovie
+        # self.setup.grid(row=1, column=0, padx=2, pady=2)
 
         # Create Play button
         self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -102,32 +94,15 @@ class Client:
         self.frameContainer = Frame(self.master, width=200)
         self.frameContainer.grid(column=4, row=1, rowspan=4)
 
-        # VIDEO_FOLDER = "./videos/"
-        # files = os.listdir(VIDEO_FOLDER)
-        # video_files = filter(lambda file: file.endswith(
-        #     ('.mp4', '.avi', '.mkv', '.Mjpeg')), files)
-        # video_paths = {file: os.path.join(
-        #     VIDEO_FOLDER, file) for file in video_files}
-
-        # def select_video(name):
-        #     self.fileName = name
-        #     self.des.insert(INSERT, "Switch to video " + name + '\n\n')
-
-        # for file, path in video_paths.items():
-        #     # create a button and add it to the window
-        #     button = Button(self.frameContainer, text=file, width=30,
-        #                     padx=2, pady=2, command=lambda path=path: select_video(path))
-        #     button.pack()
-
     def loadMovies(self):
-        # if self.state == self.INIT:
-        self.sendRtspRequest(self.LOAD)
+        if self.state == self.READY or self.state == self.PLAYING:
+            self.sendRtspRequest(self.LOAD)
 
     def setupMovie(self):
         """Setup button handler."""
         # TODO
         self.reset = True
-        if self.state == self.SWITCH:
+        if self.state == self.INIT:
             self.sendRtspRequest(self.SETUP)
 
     def exitClient(self):
@@ -157,9 +132,6 @@ class Client:
             self.playEvent = threading.Event()		# Save the next event
             self.playEvent.clear()		# Block the thread until server response
             self.sendRtspRequest(self.PLAY)
-        # elif self.state == self.SWITCH and self.fileName != '':
-        #     self.frameNbr = 0
-        #     self.sendRtspRequest(self.SETUP)
 
     def listenRtp(self):
         """Listen for RTP packets."""
@@ -236,19 +208,9 @@ class Client:
         # -------------
         # TO COMPLETE
         # -------------
-        if requestCode == self.LOAD:
+
+        if requestCode == self.SETUP and self.state == self.INIT:
             threading.Thread(target=self.recvRtspReply).start()
-
-            self.rtspSeq = self.rtspSeq + 1
-
-            request = 'LOAD ' + self.fileName + ' RTSP/1.0\n'
-            request += 'CSeq: ' + str(self.rtspSeq) + ' \n'
-            request += 'Session: ' + str(self.sessionId)
-
-            self.requestSent = self.LOAD
-            self.state = self.SWITCH
-
-        elif requestCode == self.SETUP and self.state == self.SWITCH:
             # Update RTSP sequence number
             # RTSP Sequence number starts at 1
             self.rtspSeq = self.rtspSeq + 1
@@ -260,6 +222,18 @@ class Client:
             # Keep track of the sent request
             # self.requestSent = SETUP
             self.requestSent = self.SETUP
+            self.state = self.READY
+
+        elif requestCode == self.LOAD and (self.state == self.READY or self.state == self.PLAYING):
+            # threading.Thread(target=self.recvRtspReply).start()
+
+            self.rtspSeq = self.rtspSeq + 1
+
+            request = 'LOAD ' + self.fileName + ' RTSP/1.0\n'
+            request += 'CSeq: ' + str(self.rtspSeq) + ' \n'
+            request += 'Session: ' + str(self.sessionId)
+
+            self.requestSent = self.LOAD
             self.state = self.READY
 
         # Play request
@@ -349,20 +323,22 @@ class Client:
             # Process only if the session ID is the same
             if self.sessionId == session:
                 if int(lines[0].split(' ')[1]) == 200:
-                    if self.requestSent == self.LOAD:
-                        self.state = self.SWITCH
-                        # temp = lines[3].decode()[8:].split(',')
-                        # self.videos = temp
-                        self.setList()
 
-                    elif self.requestSent == self.SETUP:
+                    if self.requestSent == self.SETUP:
                         # -------------
                         # TO COMPLETE
                         # -------------
                         # Update RTSP state
                         self.state = self.READY
+                        self.setList()
                         # Open RTP port
                         self.openRtpPort()
+
+                    elif self.requestSent == self.LOAD:
+                        self.state = self.READY
+                        # temp = lines[3].decode()[8:].split(',')
+                        # self.videos = temp
+                        # self.setList()
 
                     elif self.requestSent == self.PLAY:
                         self.state = self.PLAYING
@@ -405,17 +381,6 @@ class Client:
         else:  # Pause video when pressing cancel
             self.pauseMovie()
 
-    # def setList(self):
-
-    #     def func(name):
-    #         self.fileName = name
-    #         # self.reset = True
-    #         self.des.insert(INSERT, "Switch to file " + name + '\n\n')
-    #     for item in self.videos:
-    #         button = Button(self.frameContainer, text=item, width=20,
-    #                         padx=2, pady=2, command=functools.partial(func, item))
-    #         button.pack(side=TOP)
-
     def setList(self):
         VIDEO_FOLDER = "./videos/"
         files = os.listdir(VIDEO_FOLDER)
@@ -427,8 +392,9 @@ class Client:
 
         def select_video(name):
             self.fileName = name[9:]
-            # self.state = self.SWITCH
+            # self.state = self.READY
             self.reset = True
+            self.pauseMovie()
             self.loadMovies()
             self.des.insert(INSERT, "Switch to video " +
                             self.fileName + '\n\n')
