@@ -254,8 +254,8 @@ class Client:
                     global data_byte
                     data_byte += len(rtpPacket.getPayload())
             except:
-                # if self.playEvent.is_set():
-                #     break
+                if self.playEvent.is_set():
+                    break
 
                 if self.teardownAcked == 1:
                     self.rtpSocket.shutdown(socket.SHUT_RDWR)
