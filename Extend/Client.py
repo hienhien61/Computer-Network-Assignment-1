@@ -16,6 +16,17 @@ import tkinter as tk
 CACHE_FILE_NAME = "cache-"
 CACHE_FILE_EXT = ".jpg"
 
+#Extend 1
+#RTP Packet loss rate
+rtp_loss = 0
+rtp_sent = 0
+#Calculate Play time
+time_start = 0
+time_end = 0
+time_r = 0
+#Calculate payload (data) sent
+data_byte = 0
+
 
 class Client:
     INIT = 0
@@ -150,6 +161,12 @@ class Client:
     def exitClient(self):
         """Teardown button handler."""
         # TODO
+        #Ext 1: If video is playing, calculate time
+        if self.state == self.PLAYING:
+            global time_start, time_end, time_r
+            time_end = time.time()
+            time_r += time_end - time_start
+
         self.sendRtspRequest(self.TEARDOWN)
         self.master.destroy()  # Close the gui window
         os.remove(CACHE_FILE_NAME + str(self.sessionId) +
@@ -160,6 +177,10 @@ class Client:
         # TODO
         if self.state == self.PLAYING:
             self.sendRtspRequest(self.PAUSE)
+            #Ext1: Calculate time
+            global time_start, time_end, time_r
+            time_end = time.time()
+            time_r += time_end - time_start
 
     def playMovie(self):
         """Play button handler."""
@@ -178,6 +199,10 @@ class Client:
             self.playEvent.clear()
             # Send request to server
             self.sendRtspRequest(self.PLAY)
+
+            #Ext 1: Start calculate time
+            global time_start
+            time_start = time.time()
 
     def describeMovie(self):
         """Describe button handler."""
@@ -210,15 +235,24 @@ class Client:
                     rtpPacket = RtpPacket()
                     rtpPacket.decode(datagram)
                     currFrameNbr = rtpPacket.seqNum()
-
+                    
+                    #Ext 1: Set RTP sent count
+                    global rtp_sent 
+                    rtp_sent = currFrameNbr
                     if currFrameNbr > self.frameNbr:  # Discard the late packet
+                        #Ext 1: Check and add RTP Packet loss
+                        if (currFrameNbr - self.frameNbr) > 1:
+                            global rtp_loss
+                            rtp_loss = rtp_loss + (currFrameNbr - self.frameNbr)
                         self.frameNbr = currFrameNbr
-                        self.updateMovie(self.writeFrame(
-                            rtpPacket.getPayload()))
+                        self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
                         
                     self.displays[0]["text"] = 'Current frame: ' + str(currFrameNbr)
                     self.displays[1]["text"] = 'Current view time: ' + str(int(currFrameNbr*0.05)) + ' / ' + str(int(self.maxFrame*0.05)) + ' (s)'
 
+                    #Ext 1: Adding data bytes sent
+                    global data_byte
+                    data_byte += len(rtpPacket.getPayload())
             except:
                 # if self.playEvent.is_set():
                 #     break
@@ -415,6 +449,24 @@ class Client:
 
         self.rtspSocket.send(request.encode('utf-8'))
         print("\nData sent:\n" + request)
+
+        #Calculate statistics Extend 1
+        if(requestCode == self.TEARDOWN):
+            #Calculate RTP packet loss rate
+            if rtp_sent > 0:
+                rtp_loss_rate = rtp_loss/rtp_sent
+            else: 
+                rtp_loss_rate = 0.0
+            print('RTP packet loss rate: ' + str(rtp_loss_rate))
+
+            #Print time send request, data bytes and video data rate(bytes/second)
+            print('Time: ' + str(round(time_r,2)))
+            print('Data bytes: ' + str(data_byte))
+            if time_r > 0:
+                data_rate = round(data_byte/time_r,2)
+            else:
+                data_rate = 0
+            print('Video data rate: ' + str(data_rate))
 
     def recvRtspReply(self):
         """Receive RTSP reply from the server."""
