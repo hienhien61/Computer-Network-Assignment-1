@@ -16,15 +16,15 @@ import tkinter as tk
 CACHE_FILE_NAME = "cache-"
 CACHE_FILE_EXT = ".jpg"
 
-#Extend 1
-#RTP Packet loss rate
+# Extend 1
+# RTP Packet loss rate
 rtp_loss = 0
 rtp_sent = 0
-#Calculate Play time
+# Calculate Play time
 time_start = 0
 time_end = 0
 time_r = 0
-#Calculate payload (data) sent
+# Calculate payload (data) sent
 data_byte = 0
 
 
@@ -138,16 +138,19 @@ class Client:
         self.label.grid(row=0, column=0, columnspan=4,
                         sticky=W+E+N+S, padx=5, pady=5)
 
+        # Create frame to display the list of movies
         self.frameContainer = Frame(self.master, width=200)
         self.frameContainer.grid(column=4, row=2, rowspan=4)
-        
+
         self.displays = []
         for i in range(2):
             DLabel = Label(self.master, height=1)
-            DLabel.grid(row=1 + i, column=4, columnspan=4, sticky=W, padx=5, pady=5)
+            DLabel.grid(row=1 + i, column=4, columnspan=4,
+                        sticky=W, padx=5, pady=5)
             self.displays.append(DLabel)
 
     def loadMovies(self):
+        """"Load button handler."""
         if self.state == self.READY or self.state == self.PLAYING:
             self.sendRtspRequest(self.LOAD)
 
@@ -161,7 +164,7 @@ class Client:
     def exitClient(self):
         """Teardown button handler."""
         # TODO
-        #Ext 1: If video is playing, calculate time
+        # Ext 1: If video is playing, calculate time
         if self.state == self.PLAYING:
             global time_start, time_end, time_r
             time_end = time.time()
@@ -177,7 +180,7 @@ class Client:
         # TODO
         if self.state == self.PLAYING:
             self.sendRtspRequest(self.PAUSE)
-            #Ext1: Calculate time
+            # Ext1: Calculate time
             global time_start, time_end, time_r
             time_end = time.time()
             time_r += time_end - time_start
@@ -200,7 +203,7 @@ class Client:
             # Send request to server
             self.sendRtspRequest(self.PLAY)
 
-            #Ext 1: Start calculate time
+            # Ext 1: Start calculate time
             global time_start
             time_start = time.time()
 
@@ -235,22 +238,26 @@ class Client:
                     rtpPacket = RtpPacket()
                     rtpPacket.decode(datagram)
                     currFrameNbr = rtpPacket.seqNum()
-                    
-                    #Ext 1: Set RTP sent count
-                    global rtp_sent 
+
+                    # Ext 1: Set RTP sent count
+                    global rtp_sent
                     rtp_sent = currFrameNbr
                     if currFrameNbr > self.frameNbr:  # Discard the late packet
-                        #Ext 1: Check and add RTP Packet loss
+                        # Ext 1: Check and add RTP Packet loss
                         if (currFrameNbr - self.frameNbr) > 1:
                             global rtp_loss
-                            rtp_loss = rtp_loss + (currFrameNbr - self.frameNbr)
+                            rtp_loss = rtp_loss + \
+                                (currFrameNbr - self.frameNbr)
                         self.frameNbr = currFrameNbr
-                        self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
-                        
-                    self.displays[0]["text"] = 'Current frame: ' + str(currFrameNbr)
-                    self.displays[1]["text"] = 'Current view time: ' + str(int(currFrameNbr*0.05)) + ' / ' + str(int(self.maxFrame*0.05)) + ' (s)'
+                        self.updateMovie(self.writeFrame(
+                            rtpPacket.getPayload()))
 
-                    #Ext 1: Adding data bytes sent
+                    self.displays[0]["text"] = 'Current frame: ' + \
+                        str(currFrameNbr)
+                    self.displays[1]["text"] = 'Current view time: ' + str(
+                        int(currFrameNbr*0.05)) + ' / ' + str(int(self.maxFrame*0.05)) + ' (s)'
+
+                    # Ext 1: Adding data bytes sent
                     global data_byte
                     data_byte += len(rtpPacket.getPayload())
             except:
@@ -307,6 +314,7 @@ class Client:
         # TO COMPLETE
         # -------------
 
+        # Setup request
         if requestCode == self.SETUP and self.state == self.INIT:
             threading.Thread(target=self.recvRtspReply).start()
             # Update RTSP sequence number
@@ -322,15 +330,20 @@ class Client:
             self.requestSent = self.SETUP
             self.state = self.READY
 
+        # Load request
         elif requestCode == self.LOAD and (self.state == self.READY or self.state == self.PLAYING):
             # threading.Thread(target=self.recvRtspReply).start()
 
+            # Update RTSP sequence number
+            # RTSP sequence number increments up by 1
             self.rtspSeq = self.rtspSeq + 1
-
+            # Write the RTSP request to be sent
+            # Inster the session ID returned in the LOAD response
             request = 'LOAD ' + self.fileName + ' RTSP/1.0\n'
             request += 'CSeq: ' + str(self.rtspSeq) + ' \n'
             request += 'Session: ' + str(self.sessionId)
-
+            # Keep track of the sent request.
+            # self.requestSent = LOAD
             self.requestSent = self.LOAD
             self.state = self.READY
 
@@ -450,20 +463,20 @@ class Client:
         self.rtspSocket.send(request.encode('utf-8'))
         print("\nData sent:\n" + request)
 
-        #Calculate statistics Extend 1
-        if(requestCode == self.TEARDOWN):
-            #Calculate RTP packet loss rate
+        # Calculate statistics Extend 1
+        if (requestCode == self.TEARDOWN):
+            # Calculate RTP packet loss rate
             if rtp_sent > 0:
                 rtp_loss_rate = rtp_loss/rtp_sent
-            else: 
+            else:
                 rtp_loss_rate = 0.0
             print('RTP packet loss rate: ' + str(rtp_loss_rate))
 
-            #Print time send request, data bytes and video data rate(bytes/second)
-            print('Time: ' + str(round(time_r,2)))
+            # Print time send request, data bytes and video data rate(bytes/second)
+            print('Time: ' + str(round(time_r, 2)))
             print('Data bytes: ' + str(data_byte))
             if time_r > 0:
-                data_rate = round(data_byte/time_r,2)
+                data_rate = round(data_byte/time_r, 2)
             else:
                 data_rate = 0
             print('Video data rate: ' + str(data_rate))
@@ -579,10 +592,13 @@ class Client:
         self.videos = video_files
 
         def select_video(name):
+            # Take the fileName without path
             self.fileName = name[9:]
-            # self.state = self.READY
+            # Reset the video
             self.reset = True
+            # Pause the current video
             self.pauseMovie()
+            # Button handler
             self.loadMovies()
             self.description.insert(INSERT, "Switch to video " +
                                     self.fileName + '\n\n')

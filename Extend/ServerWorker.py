@@ -90,7 +90,9 @@ class ServerWorker:
                 # self.state = self.READY
 
                 try:
+                    # change videoStream by the chosen video
                     self.clientInfo['videoStream'] = VideoStream(filename)
+                    # update state
                     self.state = self.READY
                 except IOError:
                     self.replyRtsp(self.FILE_NOT_FOUND_404, seq[1])
@@ -229,6 +231,7 @@ class ServerWorker:
             print("500 CONNECTION ERROR")
 
     def replyLoad(self, code, seq):
+        # reply message
         if code == self.OK_200:
             videos = ','.join(VideoStream.getVideosList())
             reply = 'RTSP/1.0 200 OK\n'

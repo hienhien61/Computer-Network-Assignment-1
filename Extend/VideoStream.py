@@ -4,6 +4,7 @@ import os
 class VideoStream:
     def __init__(self, filename):
         self.filename = filename
+        # take video in the folder with path
         try:
             path = './videos/' + filename
             repath = os.path.join(os.path.dirname(__file__), path)
@@ -60,5 +61,6 @@ class VideoStream:
 
     @staticmethod
     def getVideosList():
+        # return the list of videos in the folder
         path = './videos/'
         return [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
